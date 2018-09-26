@@ -10,4 +10,5 @@ public interface GPSRecordDao {
     @Query("SELECT * FROM records")
     List<GPSRecord> getAll();
     
+
 }
