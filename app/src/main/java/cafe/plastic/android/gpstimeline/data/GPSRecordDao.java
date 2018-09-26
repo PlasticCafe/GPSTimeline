@@ -9,4 +9,5 @@ import java.util.List;
 public interface GPSRecordDao {
     @Query("SELECT * FROM records")
     List<GPSRecord> getAll();
+    
 }
