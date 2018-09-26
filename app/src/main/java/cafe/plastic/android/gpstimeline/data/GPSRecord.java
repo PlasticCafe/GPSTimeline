@@ -6,7 +6,7 @@ import android.arch.persistence.room.PrimaryKey;
 
 import java.util.Date;
 import java.util.UUID;
-@Entity
+@Entity(tableName = "records")
 public class GPSRecord {
     @PrimaryKey
     private UUID mId;
