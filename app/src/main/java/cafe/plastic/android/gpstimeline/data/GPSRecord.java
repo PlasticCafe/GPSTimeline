@@ -3,12 +3,15 @@ package cafe.plastic.android.gpstimeline.data;
 import android.arch.persistence.room.ColumnInfo;
 import android.arch.persistence.room.Entity;
 import android.arch.persistence.room.PrimaryKey;
+import android.support.annotation.NonNull;
 
 import java.util.Date;
 import java.util.UUID;
 @Entity(tableName = "records")
 public class GPSRecord {
     @PrimaryKey
+    @NonNull
+    @ColumnInfo(name = "uuid")
     private UUID mId;
     @ColumnInfo(name = "latitude")
     private double mLat;

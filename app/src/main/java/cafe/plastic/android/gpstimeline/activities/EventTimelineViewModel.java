@@ -2,23 +2,24 @@ package cafe.plastic.android.gpstimeline.activities;
 
 import android.app.Application;
 import android.arch.lifecycle.AndroidViewModel;
+import android.arch.persistence.room.Room;
 import android.support.annotation.NonNull;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import cafe.plastic.android.gpstimeline.data.GPSRecord;
+import cafe.plastic.android.gpstimeline.data.GPSRecordDatabase;
 
 public class EventTimelineViewModel extends AndroidViewModel {
-    private ArrayList<GPSRecord> mGPSRecords;
+    private GPSRecordDatabase db;
+
     public EventTimelineViewModel(@NonNull Application application) {
         super(application);
-        mGPSRecords = new ArrayList<>();
-        for(int i=0; i<100; i++) {
-            mGPSRecords.add(new GPSRecord());
-        }
+        db = Room.databaseBuilder(application, GPSRecordDatabase.class, "gpsrecord-database").build();
     }
 
-    public ArrayList<GPSRecord> getGPSRecords() {
-        return mGPSRecords;
+    public List<GPSRecord> getGPSRecords() {
+        return db.gpsRecordDao().getAll();
     }
 }

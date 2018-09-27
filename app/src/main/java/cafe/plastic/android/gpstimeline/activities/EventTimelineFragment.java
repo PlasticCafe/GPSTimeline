@@ -15,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import cafe.plastic.android.gpstimeline.R;
 import cafe.plastic.android.gpstimeline.data.GPSRecord;
@@ -22,7 +23,7 @@ import cafe.plastic.android.gpstimeline.data.GPSRecord;
 
 public class EventTimelineFragment extends Fragment {
 
-    private ArrayList<GPSRecord> mRecords;
+    private List<GPSRecord> mRecords;
     private RecyclerView mRecyclerView;
     private EventTimelineViewModel viewModel;
     private class GPSRecordHolder extends RecyclerView.ViewHolder {
