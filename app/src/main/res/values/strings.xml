@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">GPSTimeline</string>
+    <string name="mapbox_access_token">pk.eyJ1IjoicGxhc3RpY2NhZmUiLCJhIjoiY2ptbHgyZjV3MDBpZzNxczhqemI2dXVleiJ9.P2v5Yd3910xSLS0yFjuGcQ</string>
+
 </resources>
