@@ -27,7 +27,7 @@ public class BaseViewModel extends AndroidViewModel {
 
     public BaseViewModel(@NonNull Application application) {
         super(application);
-        mDb = Room.databaseBuilder(application, GPSRecordDatabase.class, "gpsrecord-database").build();
+        mDb = GPSRecordDatabase.getGPSRecordDatabase(application);
     }
 
     public LiveData<List<GPSRecord>> getGPSRecords() {
