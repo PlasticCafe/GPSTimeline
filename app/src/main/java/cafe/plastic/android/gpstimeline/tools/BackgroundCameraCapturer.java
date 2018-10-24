@@ -33,7 +33,6 @@ public class BackgroundCameraCapturer {
     private static final String TAG = BackgroundCameraCapturer.class.getSimpleName();
     private String mOutputPath;
     private Context mContext;
-    private HandlerThread mHandlerThread;
     private Handler mHandler;
     private String mCameraId;
     private Size[] mJpegSizes;
@@ -58,9 +57,9 @@ public class BackgroundCameraCapturer {
     }
     public BackgroundCameraCapturer(Context context) {
         mContext = context;
-        mHandlerThread = new HandlerThread("Background Camera Thread");
-        mHandlerThread.start();
-        mHandler = new Handler(mHandlerThread.getLooper());
+        HandlerThread handlerThread = new HandlerThread("Background Camera Thread");
+        handlerThread.start();
+        mHandler = new Handler(handlerThread.getLooper());
         mCaptureSessionCallbacks = new CameraCaptureSessionCallbacks();
         mState = CameraStates.INACTIVE;
         CameraManager cameraManager = (CameraManager)context.getSystemService(Context.CAMERA_SERVICE);

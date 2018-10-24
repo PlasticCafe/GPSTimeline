@@ -32,6 +32,7 @@ import java.io.BufferedOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import cafe.plastic.android.gpstimeline.R;
 import cafe.plastic.android.gpstimeline.broadcastreceivers.ScreenOn;
@@ -40,12 +41,13 @@ import cafe.plastic.android.gpstimeline.data.GPSRecordDatabase;
 import cafe.plastic.rxcameraman.CameraMan;
 import cafe.plastic.android.gpstimeline.tools.LocationObserver;
 import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.Disposable;
-import io.reactivex.observables.ConnectableObservable;
 import io.reactivex.schedulers.Schedulers;
+import io.reactivex.subjects.PublishSubject;
 
 public class LocationLoggerService extends Service {
     private static final String TAG = LocationLoggerService.class.getSimpleName();
@@ -57,6 +59,7 @@ public class LocationLoggerService extends Service {
     private CameraMan mCameraMan;
     private Observable<Pair<Location, byte[]>> mRecordWriter;
     private Disposable mRecordWriterSubscription;
+    private PublishSubject<Boolean> onStartCommandObserver = PublishSubject.create();
     private boolean mInitialized = false;
 
     public static Intent newIntent(Context context) {
@@ -103,36 +106,10 @@ public class LocationLoggerService extends Service {
                         }
                     });
                 } else {
-                    Log.d(TAG, "Making location request");
-                    if (mRecordWriterSubscription != null && mRecordWriterSubscription.isDisposed() != true) {
-                        Log.d(TAG, "Disposing of old subscription");
-                        mRecordWriterSubscription.dispose();
-                    }
-                    mRecordWriterSubscription = mRecordWriter.take(1)
-                            .observeOn(Schedulers.io())
-                            .subscribe((info) -> {
-                                Location location = info.first;
-                                byte[] jpegBuffer  = info.second;
-                                Log.d(TAG, "Got location and image");
-                                GPSRecord record = new GPSRecord();
-                                record.setLat(location.getLatitude());
-                                record.setLon(location.getLongitude());
-                                mDb.gpsRecordDao().insert(record);
-
-                                try {
-                                    FileOutputStream fos = getApplicationContext().openFileOutput(record.getId().toString() + ".jpg", Context.MODE_PRIVATE);
-                                    BufferedOutputStream bos = new BufferedOutputStream(fos);
-                                    bos.write(jpegBuffer);
-                                    bos.flush();
-                                    bos.close();
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                                Log.d(TAG, "Record inserted and image taken");
-                                mRecordWriterSubscription.dispose();
-                            });
-                    getLocation();
+                    onStartCommandObserver.onNext(true);
                 }
+            } else if (action.equals(getString(R.string.service_cancel_add_log))) {
+                onStartCommandObserver.onNext(false);
             }
         } else {
             return START_STICKY;
@@ -189,6 +166,53 @@ public class LocationLoggerService extends Service {
                 .zipWith(mCameraMan.getPicture_ng(), (location, image) -> new Pair<Location, byte[]>(location, image))
                 .toObservable()
                 .share();
+        onStartCommandObserver
+                .sample(10, TimeUnit.SECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe((screen) -> {
+                    if (screen) {
+                        Log.d(TAG, "Screen on event, starting record capture");
+                        if (mRecordWriterSubscription != null && mRecordWriterSubscription.isDisposed() != true) {
+                            Log.d(TAG, "Disposing of old subscription");
+                            mRecordWriterSubscription.dispose();
+                        }
+                        mRecordWriterSubscription = mRecordWriter.take(1)
+                                .timeout(5, TimeUnit.SECONDS)
+                                .observeOn(Schedulers.io())
+                                .subscribe((info) -> {
+                                    Location location = info.first;
+                                    byte[] jpegBuffer = info.second;
+                                    Log.d(TAG, "Got location and image");
+                                    GPSRecord record = new GPSRecord();
+                                    record.setLat(location.getLatitude());
+                                    record.setLon(location.getLongitude());
+                                    mDb.gpsRecordDao().insert(record);
+
+                                    try {
+                                        FileOutputStream fos = getApplicationContext().openFileOutput(record.getId().toString() + ".jpg", Context.MODE_PRIVATE);
+                                        BufferedOutputStream bos = new BufferedOutputStream(fos);
+                                        bos.write(jpegBuffer);
+                                        bos.flush();
+                                        bos.close();
+                                        record.setPicture(true);
+                                        mDb.gpsRecordDao().update(record);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                    Log.d(TAG, "Record inserted and image taken");
+                                    mRecordWriterSubscription.dispose();
+                                }, (err) -> {
+                                    Log.d(TAG, err.toString())
+                                    ;
+                                });
+                        getLocation();
+                    } else {
+                        if (mRecordWriterSubscription != null && mRecordWriterSubscription.isDisposed() != true) {
+                            Log.d(TAG, "Disposing of old subscription");
+                            mRecordWriterSubscription.dispose();
+                        }
+                    }
+                });
     }
 
     private void buildActions(NotificationCompat.Builder builder) {
@@ -203,11 +227,15 @@ public class LocationLoggerService extends Service {
             LocationRequest request = LocationRequest.create();
             request.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
             request.setNumUpdates(1);
-            request.setExpirationDuration(15000);
+            request.setExpirationDuration(5000);
             request.setInterval(0);
             request.setSmallestDisplacement(20);
             LocationServices.FusedLocationApi
                     .requestLocationUpdates(mClient, request, mLocationObserver);
         }
+    }
+
+    private interface RxOnStartCommandCallback {
+        void start();
     }
 }

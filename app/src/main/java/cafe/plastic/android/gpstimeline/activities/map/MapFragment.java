@@ -14,8 +14,14 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 
+import com.bumptech.glide.Glide;
+import com.mapbox.mapboxsdk.annotations.Marker;
+import com.mapbox.mapboxsdk.annotations.MarkerOptions;
+import com.mapbox.mapboxsdk.annotations.MarkerView;
 import com.mapbox.mapboxsdk.camera.CameraPosition;
+import com.mapbox.mapboxsdk.constants.Style;
 import com.mapbox.mapboxsdk.geometry.LatLng;
 import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
@@ -25,6 +31,7 @@ import java.util.UUID;
 
 import cafe.plastic.android.gpstimeline.R;
 import cafe.plastic.android.gpstimeline.data.GPSRecord;
+import cafe.plastic.android.gpstimeline.tools.DateFormatTools;
 
 public class MapFragment extends Fragment {
     public static final String TAG = MapFragment.class.getSimpleName();
@@ -32,10 +39,13 @@ public class MapFragment extends Fragment {
     private MapViewModel mViewModel;
     private LiveData<GPSRecord> mGPSRecord;
     private MapView mMapView;
+    private Marker mCurrentMarker = null;
+    private ImageView mImageView;
     private UUID mRecordUUID;
     private boolean mDestroyed = false;
     private boolean mReady = false;
     private boolean mIsForeground = false;
+
     public static MapFragment newInstance(UUID id) {
         MapFragment frag = new MapFragment();
         Bundle bundle = new Bundle();
@@ -54,7 +64,7 @@ public class MapFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_map_display, container, false);
-
+        mImageView = v.findViewById(R.id.imageView);
         mReady = true;
         return v;
     }
@@ -62,17 +72,25 @@ public class MapFragment extends Fragment {
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        if(getArguments() == null) {
+        if (getArguments() == null) {
             getActivity().finish(); //Nothing to show!
             return;
         }
 
-        mRecordUUID = (UUID)getArguments().getSerializable(ARGUMENT_GPS_RECORD_UUID);
+        mRecordUUID = (UUID) getArguments().getSerializable(ARGUMENT_GPS_RECORD_UUID);
         mGPSRecord = mViewModel.getGPSRecord(mRecordUUID);
         mGPSRecord.observe(getActivity(), new Observer<GPSRecord>() {
             @Override
             public void onChanged(@Nullable GPSRecord gpsRecord) {
                 Log.d(TAG, "Got record: " + gpsRecord.getId());
+                if (gpsRecord.getPicture()) {
+                    Glide.with(getActivity())
+                            .load(getActivity()
+                                    .getApplicationContext()
+                                    .getFilesDir() + "/" + gpsRecord.getId().toString() + ".jpg")
+
+                            .into(mImageView);
+                }
                 updateMap();
             }
         });
@@ -84,22 +102,24 @@ public class MapFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         new AsyncTask<Void, Void, Void>() {
             private MapView mapView;
+
             @Override
             protected Void doInBackground(Void... voids) {
                 mapView = new MapView(getActivity());
                 FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT);
                 mapView.setLayoutParams(params);
+                mapView.setStyleUrl(Style.SATELLITE);
                 return null;
             }
 
             @Override
             protected void onPostExecute(Void aVoid) {
-                if(mReady && !mDestroyed) {
+                if (mReady && !mDestroyed) {
                     mMapView = mapView;
                     FrameLayout layout = getView().findViewById(R.id.mapView);
                     layout.addView(mMapView);
                     mMapView.onCreate(savedInstanceState);
-                    if(mIsForeground) {
+                    if (mIsForeground) {
                         mMapView.onStart();
                         mMapView.onResume();
                     }
@@ -107,39 +127,39 @@ public class MapFragment extends Fragment {
                 }
             }
         }.execute();
-        if(mMapView != null) mMapView.onCreate(savedInstanceState);
+        if (mMapView != null) mMapView.onCreate(savedInstanceState);
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        if(mMapView != null) mMapView.onStart();
+        if (mMapView != null) mMapView.onStart();
     }
 
     @Override
     public void onResume() {
         super.onResume();
         mIsForeground = true;
-        if(mMapView != null) mMapView.onResume();
+        if (mMapView != null) mMapView.onResume();
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mIsForeground = false;
-        if(mMapView != null) mMapView.onPause();
+        if (mMapView != null) mMapView.onPause();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        if(mMapView != null) mMapView.onStop();
+        if (mMapView != null) mMapView.onStop();
     }
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        if(mMapView != null) mMapView.onSaveInstanceState(outState);
+        if (mMapView != null) mMapView.onSaveInstanceState(outState);
     }
 
     @Override
@@ -156,20 +176,26 @@ public class MapFragment extends Fragment {
     }
 
     private void updateMap() {
-        if(mMapView == null) return;
-         mMapView.getMapAsync(new OnMapReadyCallback() {
-             @Override
-             public void onMapReady(MapboxMap mapboxMap) {
-                 GPSRecord record = mGPSRecord.getValue();
-                 if(record != null) {
-                     CameraPosition position = new CameraPosition.Builder()
-                             .target(new LatLng(record.getLat(), record.getLon()))
-                             .zoom(10)
-                             .build();
-                     mapboxMap.setCameraPosition(position);
-                     Log.d(TAG, "Map updated");
-                 }
-             }
-         });
+        if (mMapView == null) return;
+        mMapView.getMapAsync(new OnMapReadyCallback() {
+            @Override
+            public void onMapReady(MapboxMap mapboxMap) {
+                GPSRecord record = mGPSRecord.getValue();
+                if (record != null) {
+                    CameraPosition position = new CameraPosition.Builder()
+                            .target(new LatLng(record.getLat(), record.getLon()))
+                            .zoom(20)
+                            .build();
+                    mapboxMap.setCameraPosition(position);
+                    if(mCurrentMarker != null) {
+                        mCurrentMarker.remove();
+                    }
+                    mCurrentMarker = mapboxMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(record.getLat(), record.getLon()))
+                            .title(DateFormatTools.format("MMM dd hh:mm", record.getTimestamp())));
+                    Log.d(TAG, "Map updated");
+                }
+            }
+        });
     }
 }

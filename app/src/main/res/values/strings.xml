@@ -3,5 +3,6 @@
     <string name="mapbox_access_token">pk.eyJ1IjoicGxhc3RpY2NhZmUiLCJhIjoiY2ptbHgyZjV3MDBpZzNxczhqemI2dXVleiJ9.P2v5Yd3910xSLS0yFjuGcQ</string>
 
     <string name="service_add_log_now">cafe.plastic.android.gpstimeline.services.LocationLoggerService.add</string>
+    <string name="service_cancel_add_log">cafe.plastic.android.gpstimeline.services.LocationLoggerService.cancel</string>
 
 </resources>

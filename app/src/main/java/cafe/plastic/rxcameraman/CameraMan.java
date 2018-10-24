@@ -46,11 +46,11 @@ public class CameraMan {
     private Request mRequestManager;
 
     private static class CaptureState {
-        public static final int NO_LOCKS = 1;
-        public static final int FOCUS_LK = NO_LOCKS * 2;
-        public static final int EXPSR_LK = FOCUS_LK * 2;
-        public static final int AWB_LK = EXPSR_LK * 2;
-        public static final int ALL_LK = FOCUS_LK | EXPSR_LK | AWB_LK;
+        static final int NO_LOCKS = 1;
+        static final int FOCUS_LK = NO_LOCKS * 2;
+        static final int EXPSR_LK = FOCUS_LK * 2;
+        static final int AWB_LK = EXPSR_LK * 2;
+        static final int ALL_LK = FOCUS_LK | EXPSR_LK | AWB_LK;
 
         public static boolean hasFocus(Integer state) {
             return (state & FOCUS_LK) == FOCUS_LK;
@@ -76,9 +76,9 @@ public class CameraMan {
         mImageSizes = imageSizes;
         mImageFormat = imageFormat;
         mPreviewTexture = new SurfaceTexture(10);
-        mPreviewTexture.setDefaultBufferSize(mImageSizes[mImageSizes.length - 1].getWidth(), mImageSizes[mImageSizes.length - 1].getHeight());
+        mPreviewTexture.setDefaultBufferSize(mImageSizes[mImageSizes.length - 2].getWidth(), mImageSizes[mImageSizes.length - 2].getHeight());
         mPreviewSurface = new Surface(mPreviewTexture);
-        mCaptureReader = ImageReader.newInstance(mImageSizes[0].getWidth(), mImageSizes[0].getHeight(), mImageFormat, 1);
+        mCaptureReader = ImageReader.newInstance(mImageSizes[0].getWidth(), mImageSizes[0].getHeight(), mImageFormat, 2);
         mSurfaces = Arrays.asList(mPreviewSurface, mCaptureReader.getSurface());
         mCameraObserver = new Device(mCameraManager, mCameraId).openCamera();
         mSessionObserver = new Session(mCameraObserver, mSurfaces).getSessionObserver();
@@ -109,6 +109,8 @@ public class CameraMan {
                         .flatMapSingle(openEvent -> Device.captureRequest(openEvent.getDevice(), CameraDevice.TEMPLATE_STILL_CAPTURE))
                         .map(builder -> {
                             builder.addTarget(mCaptureReader.getSurface());
+                            builder.set(CaptureRequest.JPEG_ORIENTATION,
+                                    90);
                             return builder;
                         });
 

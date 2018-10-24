@@ -2,6 +2,7 @@ package cafe.plastic.rxcameraman.Callbacks;
 
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CaptureFailure;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
@@ -36,7 +37,8 @@ public class Request {
         ).toFlowable(BackpressureStrategy.DROP)
                 .flatMap(f -> f).doOnCancel(() -> {
                     Log.d(TAG, "Capture request disposed");
-                    captureCallback.closeCapture();
+                    if (captureCallback != null)
+                        captureCallback.closeCapture();
                 });
     }
 
@@ -67,6 +69,13 @@ public class Request {
 
         CaptureSessionCallback(FlowableEmitter<CaptureResult> _s) {
             s = _s;
+        }
+
+        @Override
+        public void onCaptureFailed(@NonNull CameraCaptureSession session,@NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
+            super.onCaptureFailed(session, request, failure);
+            Log.d(TAG, "Capture failed");
+            s.onComplete();
         }
 
         public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
